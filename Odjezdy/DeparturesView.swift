@@ -1,5 +1,54 @@
 import SwiftUI
 
+/// How departure times are shown (⚙︎ → Time Format).
+enum TimeFormat: String, CaseIterable {
+    /// Countdown: m:ss in the last 4 minutes (second-accurate live data only), "N min" up to an
+    /// hour, the clock time after that.
+    case automatic
+    /// Always whole minutes remaining: "now", "7 min", "75 min".
+    case minutes
+    /// Always the departure time: "14:32".
+    case clock
+
+    static let key = "timeFormat"
+
+    var title: String {
+        switch self {
+        case .automatic: return "Automatic"
+        case .minutes: return "Minutes Remaining"
+        case .clock: return "Departure Time"
+        }
+    }
+
+    private static let hhmm: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        f.timeZone = TimeZone(identifier: "Europe/Prague")
+        return f
+    }()
+
+    static func clockString(_ date: Date) -> String { hhmm.string(from: date) }
+
+    /// The time label for a departure, and whether it is leaving now (drawn highlighted).
+    /// `secondAccurate`: live data with real seconds (Golemio), the only case that counts down m:ss.
+    func label(expected: Date, now: Date, secondAccurate: Bool) -> (text: String, isNow: Bool) {
+        let secs = Int(expected.timeIntervalSince(now).rounded(.down))
+        let mins = secs / 60
+        switch self {
+        case .clock:
+            return (Self.clockString(expected), mins < 1)
+        case .minutes:
+            return mins < 1 ? ("now", true) : ("\(mins) min", false)
+        case .automatic:
+            let showSeconds = secondAccurate && secs < 240
+            if showSeconds ? secs <= 0 : mins < 1 { return ("now", true) }
+            if showSeconds { return (String(format: "%d:%02d", mins, secs % 60), false) }
+            if mins < 60 { return ("\(mins) min", false) }
+            return (Self.clockString(expected), false)
+        }
+    }
+}
+
 /// The dark "stop sign" panel with departure rows.
 struct DeparturesView: View {
     let group: StopGroup
@@ -7,6 +56,7 @@ struct DeparturesView: View {
     let hasData: Bool
     let live: AppState.LiveState
     let ledStyle: Bool
+    var timeFormat: TimeFormat = .automatic
     var onToggle: (Int) -> Void = { _ in }
     var isAlertSet: (Departure) -> Bool = { _ in false }
     var onAlert: (Departure) -> Void = { _ in }
@@ -28,7 +78,8 @@ struct DeparturesView: View {
                             .padding(.top, si == 0 ? 2 : 8)
                         ForEach(Array(section.departures.enumerated()), id: \.element.id) { i, d in
                             DepartureRow(departure: d, colors: group.badgeColors(for: d),
-                                         now: ctx.date, ledStyle: ledStyle, alertSet: isAlertSet(d))
+                                         now: ctx.date, ledStyle: ledStyle, alertSet: isAlertSet(d),
+                                         timeFormat: timeFormat)
                                 // Leaves before you can walk there: dimmed.
                                 .opacity(group.isCatchable(d, now: ctx.date) || d.isCancelled ? 1 : 0.4)
                                 .contentShape(Rectangle())
@@ -127,13 +178,7 @@ struct DepartureRow: View {
     let now: Date
     let ledStyle: Bool
     var alertSet = false
-
-    private static let hhmm: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        f.timeZone = TimeZone(identifier: "Europe/Amsterdam")
-        return f
-    }()
+    var timeFormat: TimeFormat = .automatic
 
     private var amber: Color { Color(red: 1.0, green: 0.69, blue: 0.0) }
     private var mainText: Color { ledStyle ? amber : .white }
@@ -164,11 +209,14 @@ struct DepartureRow: View {
                 timeLabel
                 if !departure.isCancelled && departure.delayMinutes >= 2 {
                     HStack(spacing: 3) {
-                        Text(Self.hhmm.string(from: departure.planned))
+                        Text(TimeFormat.clockString(departure.planned))
                             .strikethrough()
                             .foregroundStyle(.white.opacity(0.4))
-                        Text(Self.hhmm.string(from: departure.expected))
-                            .foregroundStyle(.orange)
+                        // The main label already is the expected time in Departure Time format.
+                        if timeFormat != .clock {
+                            Text(TimeFormat.clockString(departure.expected))
+                                .foregroundStyle(.orange)
+                        }
                     }
                     .font(.system(size: 10, weight: .medium).monospacedDigit())
                 }
@@ -186,12 +234,11 @@ struct DepartureRow: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.red)
         } else {
-            let secs = Int(departure.expected.timeIntervalSince(now).rounded(.down))
-            let mins = secs / 60
-            // Live predictions carry real seconds: count down m:ss in the last 4 minutes.
-            // Planned times stay in whole minutes so they don't pretend to be precise.
-            let showSeconds = departure.isLive && departure.precise && secs < 240
-            let isNow = showSeconds ? secs <= 0 : mins < 1
+            // Only live predictions with real seconds count down m:ss (Automatic format);
+            // planned and per-minute times don't pretend to be precise.
+            let label = timeFormat.label(expected: departure.expected, now: now,
+                                         secondAccurate: departure.isLive && departure.precise)
+            let isNow = label.isNow
             HStack(spacing: 5) {
                 if alertSet {
                     Image(systemName: "bell.fill")
@@ -201,17 +248,7 @@ struct DepartureRow: View {
                 if departure.isLive {
                     Circle().fill(Color.green).frame(width: 5, height: 5)
                 }
-                Group {
-                    if isNow {
-                        Text("now")
-                    } else if showSeconds {
-                        Text(String(format: "%d:%02d", mins, secs % 60))
-                    } else if mins < 60 {
-                        Text("\(mins) min")
-                    } else {
-                        Text(Self.hhmm.string(from: departure.expected))
-                    }
-                }
+                Text(label.text)
                 .font(ledStyle ? .system(size: 14, weight: .semibold, design: .monospaced)
                                : .system(size: 14, weight: .semibold).monospacedDigit())
                 .foregroundStyle(isNow ? (ledStyle ? amber : .green) : mainText)

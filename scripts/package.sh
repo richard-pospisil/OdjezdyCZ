@@ -4,9 +4,12 @@
 # Optional: DEVELOPMENT_TEAM=<your team id> scripts/package.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# -file-prefix-map and stripping (DEPLOYMENT_POSTPROCESSING) keep this folder's path, which
+# contains your user name, out of the binary.
 xcodebuild -project Odjezdy.xcodeproj -scheme Odjezdy -configuration Release \
   -destination 'generic/platform=macOS' \
   -derivedDataPath build/xcode -allowProvisioningUpdates \
+  OTHER_SWIFT_FLAGS="-file-prefix-map $PWD=. -file-prefix-map ${PWD#/private}=." DEPLOYMENT_POSTPROCESSING=YES \
   ${DEVELOPMENT_TEAM:+DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM} build | grep -E "error|BUILD" || true
 APP=build/xcode/Build/Products/Release/Odjezdy.app
 [[ -d "$APP" ]] || { echo "Build failed"; exit 1; }

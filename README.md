@@ -48,6 +48,7 @@
 - **Grouped by transport type.** Metro, train, tram, bus and ferry each get their own section with the official PID line colours (A green, B yellow, C red, maroon trams, …), so you're not reading a mix of numbers.
 - **"More" on every section.** Big stops like Dejvická or Anděl have dozens of departures; click **More ▾** on a section to see up to 12 later ones.
 - **Second-accurate countdowns.** In the last 4 minutes, live departures count down as `3:25 … 0:40 … now` (with Golemio data, which predicts to the second; MOTIS data shows minutes). Further out they show `7 min`, and anything over an hour shows the clock time.
+- **Pick your time format.** Prefer one style? ⚙︎ → *Time Format* switches every row to *Minutes Remaining* (`now`, `7 min`, `75 min`, never seconds) or *Departure Time* (`14:32`). *Automatic* is the mix described above.
 - **Delays and cancellations.** A delayed departure shows the scheduled time crossed out next to the predicted one; cancelled trips are struck through in red.
 - **Disruption notices.** Service notices for the stop (closures, moved stops, diversions) appear as an orange banner above the board: official PID notices via Golemio (in English when translated), and MOTIS alerts elsewhere.
 - **Sign-style amber text** (optional): a nod to the LED boards at the stops (⚙︎ → *Sign-style Amber Text*).
@@ -60,7 +61,8 @@
 
 ### Walking time
 - The header shows the **walking time** to the stop, e.g. `Praha · 290 m · 🚶 5 min`.
-- **Departures you can't reach in time are skipped.** Only one is kept, dimmed, in case you want to run for it, so the board doesn't fill up with trams leaving in the next 60 seconds.
+- **How it's calculated:** straight-line distance to the nearest platform, plus 25% because streets aren't straight, at a walking pace of 4.8 km/h (80 m/min). It's an estimate, worked out on your Mac with no route planning, so it can differ from Google Maps, especially where you have to go around a river, railway or big block.
+- **Departures you can't reach in time are skipped.** A departure counts as reachable if it leaves after at least 75% of your walking time (you might hurry a bit). Only the last unreachable one in each section is kept, dimmed, in case you want to run for it, so the board doesn't fill up with trams leaving in the next 60 seconds.
 
 ### Leave-now alerts 🔔
 - **Click any departure** to get a notification when it's time to walk to the stop: *"Leave within 5 min for 26 → Nádraží Hostivař"*.
@@ -130,7 +132,7 @@ The key is stored only on your Mac (in the app's preferences) and is sent only t
 | Pin a line to the top | Right-click a departure → **Add … to Your Lines** |
 | Look up another stop | Click 🔍 next to the stop name |
 | Refresh now | Click ↻ (it also refreshes every 15 s while open) |
-| Settings | Click ⚙︎: start at login, amber sign style, alert lead time, API key, quit |
+| Settings | Click ⚙︎: start at login, amber sign style, time format, alert lead time, API key, quit |
 
 ---
 

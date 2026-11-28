@@ -5,6 +5,7 @@ struct PopoverView: View {
     @ObservedObject var state: AppState
     @AppStorage("ledStyle") private var ledStyle = false
     @AppStorage(LeaveAlert.bufferKey) private var alertBuffer = 5
+    @AppStorage(TimeFormat.key) private var timeFormat = TimeFormat.automatic
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -23,7 +24,7 @@ struct PopoverView: View {
                     if !state.notices.isEmpty { noticesBanner }
                     if let a = state.leaveAlert.pending { alertBanner(a) }
                     DeparturesView(group: g, sections: state.sections, hasData: state.hasDeparturesForSelected,
-                                   live: state.live, ledStyle: ledStyle,
+                                   live: state.live, ledStyle: ledStyle, timeFormat: timeFormat,
                                    onToggle: { state.toggleExpanded($0) },
                                    isAlertSet: { state.leaveAlert.isSet($0) },
                                    onAlert: { state.toggleLeaveAlert($0) },
@@ -225,6 +226,9 @@ struct PopoverView: View {
             Menu {
                 Toggle("Start at Login", isOn: $state.startAtLogin)
                 Toggle("Sign-style Amber Text", isOn: $ledStyle)
+                Picker("Time Format", selection: $timeFormat) {
+                    ForEach(TimeFormat.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
                 Picker("Leave-Now Alert", selection: $alertBuffer) {
                     ForEach(LeaveAlert.bufferChoices, id: \.self) { m in
                         Text("\(m) min before I must leave").tag(m)
